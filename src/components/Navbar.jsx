@@ -1,25 +1,19 @@
-import { School, CalendarCheck, BarChart3, NotebookPen } from "lucide-react";
+import React from 'react';
 
-export default function Navbar() {
+export default function Navbar({ selectedClassName }) {
   return (
-    <header className="sticky top-0 z-20 w-full border-b bg-white/70 backdrop-blur">
-      <div className="mx-auto max-w-7xl px-4 py-3 flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <div className="h-10 w-10 rounded-lg bg-blue-600 text-white grid place-items-center">
-            <School size={22} />
-          </div>
-          <div>
-            <h1 className="text-lg font-bold leading-tight tracking-wide uppercase">
-              ABSENSI SISWA MAS AL-WASHLIYAH NAGUR
-            </h1>
-            <p className="text-xs text-gray-500 -mt-0.5">Dashboard • Kehadiran • Nilai</p>
-          </div>
-        </div>
-        <nav className="hidden md:flex items-center gap-6 text-sm text-gray-600">
-          <span className="inline-flex items-center gap-2"><CalendarCheck size={16}/>Absensi</span>
-          <span className="inline-flex items-center gap-2"><BarChart3 size={16}/>Rekap</span>
-          <span className="inline-flex items-center gap-2"><NotebookPen size={16}/>Nilai</span>
-        </nav>
+    <header className="w-full border-b bg-white/70 backdrop-blur supports-[backdrop-filter]:bg-white/60 sticky top-0 z-10">
+      <div className="mx-auto max-w-6xl px-4 py-4 flex items-center justify-between">
+        <h1 className="text-lg sm:text-xl font-semibold tracking-tight text-slate-800">
+          ABSENSI SISWA MAS AL-WASHLIYAH NAGUR
+        </h1>
+        {selectedClassName ? (
+          <span className="text-sm text-slate-600 bg-slate-100 rounded-full px-3 py-1">
+            Kelas: {selectedClassName}
+          </span>
+        ) : (
+          <span className="text-sm text-slate-500">Pilih kelas</span>
+        )}
       </div>
     </header>
   );

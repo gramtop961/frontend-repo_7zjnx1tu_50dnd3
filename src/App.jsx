@@ -1,129 +1,107 @@
-import { useMemo, useState } from "react";
-import Navbar from "./components/Navbar";
-import DashboardCards from "./components/DashboardCards";
-import AttendanceForm from "./components/AttendanceForm";
-import AttendanceRecap from "./components/AttendanceRecap";
-import GradeConverter from "./components/GradeConverter";
-import ClassManager from "./components/ClassManager";
+import React, { useMemo, useState } from 'react';
+import Navbar from './components/Navbar';
+import ClassManager from './components/ClassManager';
+import AttendanceForm from './components/AttendanceForm';
+import AttendanceRecap from './components/AttendanceRecap';
 
-function App() {
-  // Kelas
-  const [classes, setClasses] = useState([
-    { id: "C01", name: "X IPA 1" },
-    { id: "C02", name: "X IPA 2" },
-  ]);
+// Simple id generator for demo purposes
+const uid = () => Math.random().toString(36).slice(2, 10);
 
-  // Siswa (bisa dihubungkan ke backend nanti)
-  const [students, setStudents] = useState([
-    { id: "S001", name: "Alya Prameswari", classId: "C01" },
-    { id: "S002", name: "Bima Saputra", classId: "C01" },
-    { id: "S003", name: "Citra Laksmi", classId: "C02" },
-    { id: "S004", name: "Dimas Maulana", classId: "C02" },
-  ]);
-
+export default function App() {
+  const [classes, setClasses] = useState([]);
+  const [students, setStudents] = useState([]); // {id, name, classId}
+  const [attendance, setAttendance] = useState([]); // {studentId, date, status, note}
   const [selectedClassId, setSelectedClassId] = useState(null);
 
-  // Data absensi & nilai (sementara in-memory untuk demo UI)
-  const [attendance, setAttendance] = useState([
-    { studentId: "S001", date: new Date().toISOString(), status: "H", note: "" },
-    { studentId: "S002", date: new Date().toISOString(), status: "I", note: "Keperluan" },
-    { studentId: "S003", date: new Date().toISOString(), status: "H", note: "" },
-  ]);
+  const selectedClassName = useMemo(() => {
+    return classes.find((c) => c.id === selectedClassId)?.name || '';
+  }, [classes, selectedClassId]);
 
-  const [grades, setGrades] = useState([
-    { studentId: "S001", date: new Date().toISOString(), score: 86 },
-    { studentId: "S002", date: new Date().toISOString(), score: 78 },
-    { studentId: "S003", date: new Date().toISOString(), score: 92 },
-  ]);
+  const studentsInSelected = useMemo(
+    () => students.filter((s) => s.classId === selectedClassId),
+    [students, selectedClassId]
+  );
 
-  const todayKey = new Date().toISOString().slice(0, 10);
-  const stats = useMemo(() => {
-    const todayRecords = attendance.filter((a) => a.date.slice(0, 10) === todayKey);
-    const presentToday = todayRecords.filter((a) => a.status === "H").length;
-    const absentToday = todayRecords.filter((a) => a.status !== "H").length;
+  const attendanceInSelected = useMemo(
+    () => attendance.filter((a) => studentsInSelected.some((s) => s.id === a.studentId)),
+    [attendance, studentsInSelected]
+  );
 
-    // Rata-rata nilai bulanan (bulan berjalan)
-    const currentMonth = new Date().toISOString().slice(0, 7);
-    const monthly = grades.filter((g) => g.date.slice(0, 7) === currentMonth);
-    const avgMonthlyGrade = monthly.length
-      ? monthly.reduce((sum, g) => sum + g.score, 0) / monthly.length
-      : 0;
-
-    // Stats mengikuti filter kelas jika ada
-    const filteredStudents = selectedClassId
-      ? students.filter((s) => s.classId === selectedClassId)
-      : students;
-    const filteredIds = new Set(filteredStudents.map((s) => s.id));
-
-    const presentFiltered = todayRecords.filter(
-      (a) => a.status === "H" && filteredIds.has(a.studentId)
-    ).length;
-    const absentFiltered = todayRecords.filter(
-      (a) => a.status !== "H" && filteredIds.has(a.studentId)
-    ).length;
-
-    return {
-      totalStudents: filteredStudents.length,
-      presentToday: presentFiltered,
-      absentToday: absentFiltered,
-      avgMonthlyGrade,
-    };
-  }, [attendance, grades, students, todayKey, selectedClassId]);
-
-  const addAttendance = (record) => {
-    setAttendance((prev) => [...prev, record]);
-  };
-
-  const addGrade = (entry) => {
-    setGrades((prev) => [...prev, entry]);
-  };
-
-  const addClass = (name) => {
-    const id = `C${String(classes.length + 1).padStart(2, "0")}`;
-    setClasses((prev) => [...prev, { id, name }]);
-    // otomatis pilih kelas baru
+  // Class actions
+  const handleAddClass = (name) => {
+    const id = uid();
+    const newClass = { id, name };
+    setClasses((prev) => [...prev, newClass]);
     setSelectedClassId(id);
   };
 
-  const addStudent = (name, classId) => {
-    const id = `S${String(students.length + 1).padStart(3, "0")}`;
-    setStudents((prev) => [...prev, { id, name, classId: classId || null }]);
+  const handleDeleteClass = (classId) => {
+    // Remove class, its students, and related attendance
+    const studentIds = students.filter((s) => s.classId === classId).map((s) => s.id);
+    setClasses((prev) => prev.filter((c) => c.id !== classId));
+    setStudents((prev) => prev.filter((s) => s.classId !== classId));
+    setAttendance((prev) => prev.filter((a) => !studentIds.includes(a.studentId)));
+    if (selectedClassId === classId) setSelectedClassId(null);
   };
 
-  const filteredStudents = selectedClassId
-    ? students.filter((s) => s.classId === selectedClassId)
-    : students;
+  // Student actions
+  const handleAddStudent = ({ name, classId }) => {
+    setStudents((prev) => [...prev, { id: uid(), name, classId }]);
+  };
+
+  const handleMoveStudent = (studentId, targetClassId) => {
+    setStudents((prev) => prev.map((s) => (s.id === studentId ? { ...s, classId: targetClassId } : s)));
+  };
+
+  const handleDeleteStudent = (studentId) => {
+    setStudents((prev) => prev.filter((s) => s.id !== studentId));
+    setAttendance((prev) => prev.filter((a) => a.studentId !== studentId));
+  };
+
+  // Attendance actions
+  const handleSubmitAttendance = (records) => {
+    // For simplicity, replace existing records for same studentId+date
+    setAttendance((prev) => {
+      const key = (r) => `${r.studentId}|${r.date}`;
+      const existing = new Map(prev.map((r) => [key(r), r]));
+      records.forEach((r) => existing.set(key(r), r));
+      return Array.from(existing.values());
+    });
+  };
 
   return (
     <div className="min-h-screen bg-slate-50">
-      <Navbar />
-      <main className="mx-auto max-w-7xl px-4 py-6 space-y-6">
-        <DashboardCards stats={stats} />
+      <Navbar selectedClassName={selectedClassName} />
 
+      <main className="mx-auto max-w-6xl px-4 py-6 space-y-6">
         <ClassManager
           classes={classes}
           students={students}
           selectedClassId={selectedClassId}
           onSelectClass={setSelectedClassId}
-          onAddClass={addClass}
-          onAddStudent={addStudent}
+          onAddClass={handleAddClass}
+          onDeleteClass={handleDeleteClass}
+          onAddStudent={handleAddStudent}
+          onMoveStudent={handleMoveStudent}
+          onDeleteStudent={handleDeleteStudent}
         />
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          <div className="lg:col-span-2 space-y-6">
-            <AttendanceForm students={filteredStudents} onSubmit={addAttendance} />
-            <AttendanceRecap students={filteredStudents} records={attendance} />
-          </div>
-          <div className="lg:col-span-1">
-            <GradeConverter students={filteredStudents} grades={grades} onAddGrade={addGrade} />
-          </div>
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+          <AttendanceForm
+            students={studentsInSelected}
+            onSubmitAttendance={handleSubmitAttendance}
+          />
+
+          <AttendanceRecap
+            students={studentsInSelected}
+            attendance={attendanceInSelected}
+          />
         </div>
       </main>
-      <footer className="py-6 text-center text-xs text-gray-500">
-        Dibuat untuk demo: Absensi, Rekap, Konversi Nilai, serta Manajemen Kelas & Siswa.
+
+      <footer className="py-6 text-center text-xs text-slate-500">
+        Dibuat untuk pengelolaan absensi dan manajemen kelas.
       </footer>
     </div>
   );
 }
-
-export default App;

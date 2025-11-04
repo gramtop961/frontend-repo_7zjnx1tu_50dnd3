@@ -1,97 +1,97 @@
-import { useMemo, useState } from "react";
-import { CalendarCheck2, Plus } from "lucide-react";
+import React, { useMemo, useState } from 'react';
 
-const STATUS = [
-  { value: "H", label: "Hadir" },
-  { value: "I", label: "Izin" },
-  { value: "S", label: "Sakit" },
-  { value: "A", label: "Alfa" },
+const statusOptions = [
+  { value: 'Hadir', label: 'Hadir' },
+  { value: 'Izin', label: 'Izin' },
+  { value: 'Sakit', label: 'Sakit' },
+  { value: 'Alpha', label: 'Alpha' },
 ];
 
-export default function AttendanceForm({ students, onSubmit }) {
-  const today = useMemo(() => new Date().toISOString().slice(0, 10), []);
-  const [form, setForm] = useState({
-    studentId: students[0]?.id || "",
-    date: today,
-    status: "H",
-    note: "",
-  });
+export default function AttendanceForm({ students, onSubmitAttendance }) {
+  const today = new Date().toISOString().slice(0, 10);
+  const [date, setDate] = useState(today);
+  const initial = useMemo(
+    () => Object.fromEntries(students.map((s) => [s.id, { status: 'Hadir', note: '' }])) ,
+    [students]
+  );
+  const [entries, setEntries] = useState(initial);
 
-  const handleChange = (e) => {
-    const { name, value } = e.target;
-    setForm((f) => ({ ...f, [name]: value }));
+  React.useEffect(() => {
+    setEntries(initial);
+  }, [initial]);
+
+  const handleChange = (studentId, field, value) => {
+    setEntries((prev) => ({
+      ...prev,
+      [studentId]: { ...prev[studentId], [field]: value },
+    }));
   };
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    if (!form.studentId || !form.date || !form.status) return;
-    onSubmit({ ...form, date: new Date(form.date).toISOString() });
-    setForm((f) => ({ ...f, status: "H", note: "" }));
+    const records = students.map((s) => ({
+      studentId: s.id,
+      date,
+      status: entries[s.id]?.status || 'Hadir',
+      note: entries[s.id]?.note || '',
+    }));
+    onSubmitAttendance(records);
   };
 
   return (
-    <section className="rounded-xl border bg-white p-5 shadow-sm">
-      <div className="flex items-center gap-2 mb-4">
-        <CalendarCheck2 className="text-blue-600" size={20} />
-        <h2 className="font-semibold">Absensi Siswa</h2>
+    <section className="rounded-xl border bg-white p-4">
+      <div className="flex items-center justify-between mb-4">
+        <h3 className="font-medium text-slate-800">Input Absensi</h3>
+        <input
+          type="date"
+          value={date}
+          onChange={(e) => setDate(e.target.value)}
+          className="rounded-md border px-3 py-2 text-sm"
+        />
       </div>
-      <form onSubmit={handleSubmit} className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <div className="flex flex-col gap-1">
-          <label className="text-sm text-gray-600">Siswa</label>
-          <select
-            name="studentId"
-            value={form.studentId}
-            onChange={handleChange}
-            className="h-10 rounded-lg border px-3"
-          >
-            {students.map((s) => (
-              <option key={s.id} value={s.id}>{s.name}</option>
-            ))}
-          </select>
-        </div>
-        <div className="flex flex-col gap-1">
-          <label className="text-sm text-gray-600">Tanggal</label>
-          <input
-            type="date"
-            name="date"
-            value={form.date}
-            onChange={handleChange}
-            className="h-10 rounded-lg border px-3"
-          />
-        </div>
-        <div className="flex flex-col gap-1">
-          <label className="text-sm text-gray-600">Status</label>
-          <select
-            name="status"
-            value={form.status}
-            onChange={handleChange}
-            className="h-10 rounded-lg border px-3"
-          >
-            {STATUS.map((s) => (
-              <option key={s.value} value={s.value}>{s.label}</option>
-            ))}
-          </select>
-        </div>
-        <div className="flex flex-col gap-1 md:col-span-3">
-          <label className="text-sm text-gray-600">Catatan</label>
-          <input
-            type="text"
-            name="note"
-            value={form.note}
-            onChange={handleChange}
-            placeholder="Opsional"
-            className="h-10 rounded-lg border px-3"
-          />
-        </div>
-        <div className="md:col-span-1 flex items-end">
-          <button
-            type="submit"
-            className="inline-flex items-center gap-2 rounded-lg bg-blue-600 text-white px-4 py-2 hover:bg-blue-700 transition-colors"
-          >
-            <Plus size={18} /> Simpan Absensi
-          </button>
-        </div>
-      </form>
+
+      {students.length === 0 ? (
+        <p className="text-sm text-slate-500">Tidak ada siswa di kelas ini.</p>
+      ) : (
+        <form onSubmit={handleSubmit} className="space-y-3">
+          {students.map((s) => (
+            <div key={s.id} className="grid grid-cols-1 sm:grid-cols-12 items-center gap-2">
+              <div className="sm:col-span-4 text-slate-800 text-sm">{s.name}</div>
+              <div className="sm:col-span-3">
+                <select
+                  className="w-full rounded-md border px-3 py-2 text-sm"
+                  value={entries[s.id]?.status || 'Hadir'}
+                  onChange={(e) => handleChange(s.id, 'status', e.target.value)}
+                >
+                  {statusOptions.map((opt) => (
+                    <option key={opt.value} value={opt.value}>
+                      {opt.label}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div className="sm:col-span-5">
+                <input
+                  type="text"
+                  className="w-full rounded-md border px-3 py-2 text-sm"
+                  placeholder="Catatan (opsional)"
+                  value={entries[s.id]?.note || ''}
+                  onChange={(e) => handleChange(s.id, 'note', e.target.value)}
+                />
+              </div>
+            </div>
+          ))}
+
+          <div className="pt-2">
+            <button
+              type="submit"
+              className="rounded-md bg-slate-800 text-white text-sm px-4 py-2 hover:bg-slate-700"
+            >
+              Simpan Absensi
+            </button>
+          </div>
+        </form>
+      )}
     </section>
   );
 }

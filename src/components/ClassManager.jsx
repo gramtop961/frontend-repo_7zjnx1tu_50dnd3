@@ -1,166 +1,208 @@
-import { useState } from "react";
-import { Users, Plus, School } from "lucide-react";
+import React, { useMemo, useState } from 'react';
 
-/**
- * Manage classes and students assignment
- * Props:
- * - classes: Array<{ id: string, name: string }>
- * - students: Array<{ id: string, name: string, classId?: string }>
- * - selectedClassId: string | null
- * - onSelectClass: (id: string | null) => void
- * - onAddClass: (name: string) => void
- * - onAddStudent: (name: string, classId: string | null) => void
- */
 export default function ClassManager({
   classes,
   students,
   selectedClassId,
   onSelectClass,
   onAddClass,
+  onDeleteClass,
   onAddStudent,
+  onMoveStudent,
+  onDeleteStudent,
 }) {
-  const [className, setClassName] = useState("");
-  const [studentName, setStudentName] = useState("");
+  const [newClassName, setNewClassName] = useState('');
+  const [newStudentName, setNewStudentName] = useState('');
+  const [moveTargetClassId, setMoveTargetClassId] = useState('');
 
-  const studentsInClass = selectedClassId
-    ? students.filter((s) => s.classId === selectedClassId)
-    : students;
+  const selectedClass = useMemo(
+    () => classes.find((c) => c.id === selectedClassId) || null,
+    [classes, selectedClassId]
+  );
+
+  const studentsInClass = useMemo(
+    () => students.filter((s) => s.classId === selectedClassId),
+    [students, selectedClassId]
+  );
 
   const handleAddClass = (e) => {
     e.preventDefault();
-    const name = className.trim();
+    const name = newClassName.trim();
     if (!name) return;
     onAddClass(name);
-    setClassName("");
+    setNewClassName('');
   };
 
   const handleAddStudent = (e) => {
     e.preventDefault();
-    const name = studentName.trim();
-    if (!name) return;
-    onAddStudent(name, selectedClassId || null);
-    setStudentName("");
+    const name = newStudentName.trim();
+    if (!name || !selectedClassId) return;
+    onAddStudent({ name, classId: selectedClassId });
+    setNewStudentName('');
   };
 
   return (
-    <section className="rounded-xl border bg-white p-4 lg:p-5 shadow-sm">
-      <div className="flex items-center justify-between mb-4">
-        <div className="flex items-center gap-2">
-          <div className="h-9 w-9 rounded-lg bg-violet-600 text-white grid place-items-center">
-            <Users size={18} />
-          </div>
-          <div>
-            <h2 className="font-semibold">Kelola Kelas & Siswa</h2>
-            <p className="text-xs text-gray-500">Tambah kelas dan masukkan siswa ke kelas.</p>
-          </div>
-        </div>
-      </div>
-
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-        {/* Kiri: Pilih Kelas & Tambah Kelas */}
-        <div className="space-y-3">
-          <label className="text-xs font-medium text-gray-600">Pilih Kelas</label>
-          <select
-            className="w-full rounded-md border-gray-300 focus:border-violet-500 focus:ring-violet-500"
-            value={selectedClassId || ""}
-            onChange={(e) => onSelectClass(e.target.value || null)}
-          >
-            <option value="">Semua Kelas</option>
-            {classes.map((c) => (
-              <option key={c.id} value={c.id}>{c.name}</option>
-            ))}
-          </select>
-
-          <form onSubmit={handleAddClass} className="flex gap-2 pt-2">
+    <section className="space-y-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div className="rounded-xl border bg-white p-4">
+          <h3 className="font-medium text-slate-800 mb-3">Kelola Kelas</h3>
+          <form onSubmit={handleAddClass} className="flex gap-2">
             <input
               type="text"
-              value={className}
-              onChange={(e) => setClassName(e.target.value)}
-              placeholder="Nama kelas (mis. X IPA 1)"
-              className="flex-1 rounded-md border-gray-300 focus:border-violet-500 focus:ring-violet-500"
+              className="flex-1 rounded-md border px-3 py-2 text-sm focus:outline-none focus:ring focus:ring-slate-200"
+              placeholder="Nama kelas (misal: X IPA 1)"
+              value={newClassName}
+              onChange={(e) => setNewClassName(e.target.value)}
             />
             <button
               type="submit"
-              className="inline-flex items-center gap-1 rounded-md bg-violet-600 px-3 py-2 text-white hover:bg-violet-700"
+              className="rounded-md bg-slate-800 text-white text-sm px-3 py-2 hover:bg-slate-700"
             >
-              <Plus size={16} /> Kelas
+              Tambah
             </button>
           </form>
+
+          <div className="mt-4 space-y-2">
+            {classes.length === 0 && (
+              <p className="text-sm text-slate-500">Belum ada kelas.</p>
+            )}
+            {classes.map((c) => (
+              <div
+                key={c.id}
+                className={`flex items-center justify-between rounded-md border px-3 py-2 ${
+                  c.id === selectedClassId ? 'bg-slate-50 border-slate-300' : 'bg-white'
+                }`}
+              >
+                <button
+                  className="text-left text-sm text-slate-800 hover:underline"
+                  onClick={() => onSelectClass(c.id)}
+                >
+                  {c.name}
+                </button>
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={() => {
+                      if (confirm(`Hapus kelas "${c.name}"? Semua siswa dan data absensi terkait akan ikut terhapus.`)) {
+                        onDeleteClass(c.id);
+                      }
+                    }}
+                    className="text-xs text-red-600 hover:underline"
+                  >
+                    Hapus
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
         </div>
 
-        {/* Tengah: Tambah Siswa */}
-        <div className="space-y-3">
-          <label className="text-xs font-medium text-gray-600">Tambah Siswa</label>
+        <div className="rounded-xl border bg-white p-4">
+          <h3 className="font-medium text-slate-800 mb-3">Kelola Siswa</h3>
+
+          <div className="flex flex-wrap items-center gap-2 mb-3">
+            <select
+              value={selectedClassId || ''}
+              onChange={(e) => onSelectClass(e.target.value || null)}
+              className="rounded-md border px-3 py-2 text-sm"
+            >
+              <option value="">Pilih kelas</option>
+              {classes.map((c) => (
+                <option key={c.id} value={c.id}>
+                  {c.name}
+                </option>
+              ))}
+            </select>
+            <span className="text-sm text-slate-500">
+              {selectedClass ? `${studentsInClass.length} siswa dalam ${selectedClass.name}` : 'Belum memilih kelas'}
+            </span>
+          </div>
+
           <form onSubmit={handleAddStudent} className="flex gap-2">
             <input
               type="text"
-              value={studentName}
-              onChange={(e) => setStudentName(e.target.value)}
+              className="flex-1 rounded-md border px-3 py-2 text-sm focus:outline-none focus:ring focus:ring-slate-200"
               placeholder="Nama siswa"
-              className="flex-1 rounded-md border-gray-300 focus:border-violet-500 focus:ring-violet-500"
+              value={newStudentName}
+              onChange={(e) => setNewStudentName(e.target.value)}
+              disabled={!selectedClassId}
             />
             <button
               type="submit"
-              className="inline-flex items-center gap-1 rounded-md bg-blue-600 px-3 py-2 text-white hover:bg-blue-700"
-              title={selectedClassId ? "Tambah ke kelas terpilih" : "Tambah tanpa kelas"}
+              disabled={!selectedClassId}
+              className="rounded-md bg-slate-800 text-white text-sm px-3 py-2 hover:bg-slate-700 disabled:opacity-50"
             >
-              <Plus size={16} /> Siswa
+              Tambah Siswa
             </button>
           </form>
-          <p className="text-xs text-gray-500">
-            {selectedClassId ? "Siswa baru akan dimasukkan ke kelas terpilih." : "Tidak ada kelas terpilih — siswa ditambahkan tanpa kelas."}
-          </p>
-        </div>
 
-        {/* Kanan: Ringkasan */}
-        <div className="space-y-3">
-          <div className="rounded-lg border p-3 bg-slate-50">
-            <div className="flex items-center gap-2 mb-2 text-slate-700">
-              <School size={16} />
-              <span className="text-sm font-medium">Ringkasan</span>
-            </div>
-            <ul className="text-xs text-slate-600 space-y-1">
-              <li>Total kelas: <span className="font-semibold text-slate-800">{classes.length}</span></li>
-              <li>Total siswa: <span className="font-semibold text-slate-800">{students.length}</span></li>
-              <li>
-                Siswa di {selectedClassId ? (classes.find(c => c.id === selectedClassId)?.name || "-") : "semua kelas"}: 
-                <span className="font-semibold text-slate-800"> {studentsInClass.length}</span>
-              </li>
-            </ul>
-          </div>
-        </div>
-      </div>
-
-      {/* Daftar Siswa di Kelas */}
-      <div className="mt-5">
-        <h3 className="text-sm font-semibold text-gray-700 mb-2">Daftar Siswa {selectedClassId ? `- ${classes.find(c => c.id === selectedClassId)?.name || ""}` : "(semua)"}</h3>
-        <div className="rounded-lg border bg-white overflow-hidden">
-          <table className="min-w-full divide-y divide-gray-200">
-            <thead className="bg-gray-50">
-              <tr>
-                <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">ID</th>
-                <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Nama</th>
-                <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Kelas</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-gray-100">
-              {studentsInClass.length === 0 ? (
-                <tr>
-                  <td colSpan={3} className="px-4 py-6 text-center text-sm text-gray-500">Belum ada siswa.</td>
+          <div className="mt-4 overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="text-left text-slate-600 border-b">
+                  <th className="py-2 pr-2">Nama</th>
+                  <th className="py-2 pr-2">Pindah ke</th>
+                  <th className="py-2">Aksi</th>
                 </tr>
-              ) : (
-                studentsInClass.map((s) => (
-                  <tr key={s.id} className="hover:bg-gray-50">
-                    <td className="px-4 py-2 text-sm text-gray-700">{s.id}</td>
-                    <td className="px-4 py-2 text-sm text-gray-700">{s.name}</td>
-                    <td className="px-4 py-2 text-sm text-gray-700">
-                      {s.classId ? (classes.find(c => c.id === s.classId)?.name || "-") : "-"}
+              </thead>
+              <tbody>
+                {studentsInClass.length === 0 ? (
+                  <tr>
+                    <td colSpan={3} className="py-4 text-slate-500">
+                      {selectedClassId ? 'Belum ada siswa di kelas ini.' : 'Pilih kelas untuk melihat daftar siswa.'}
                     </td>
                   </tr>
-                ))
-              )}
-            </tbody>
-          </table>
+                ) : (
+                  studentsInClass.map((s) => (
+                    <tr key={s.id} className="border-b last:border-b-0">
+                      <td className="py-2 pr-2 text-slate-800">{s.name}</td>
+                      <td className="py-2 pr-2">
+                        <div className="flex items-center gap-2">
+                          <select
+                            className="rounded-md border px-2 py-1"
+                            value={moveTargetClassId || ''}
+                            onChange={(e) => setMoveTargetClassId(e.target.value)}
+                          >
+                            <option value="">Pilih kelas</option>
+                            {classes
+                              .filter((c) => c.id !== selectedClassId)
+                              .map((c) => (
+                                <option key={c.id} value={c.id}>
+                                  {c.name}
+                                </option>
+                              ))}
+                          </select>
+                          <button
+                            className="text-xs rounded-md bg-blue-600 hover:bg-blue-500 text-white px-2 py-1"
+                            onClick={() => {
+                              if (!moveTargetClassId) return;
+                              if (confirm(`Pindahkan ${s.name} ke kelas lain?`)) {
+                                onMoveStudent(s.id, moveTargetClassId);
+                                setMoveTargetClassId('');
+                              }
+                            }}
+                          >
+                            Pindahkan
+                          </button>
+                        </div>
+                      </td>
+                      <td className="py-2">
+                        <button
+                          className="text-xs text-red-600 hover:underline"
+                          onClick={() => {
+                            if (confirm(`Hapus siswa \"${s.name}\" dari kelas ini? Data absensi terkait akan ikut terhapus.`)) {
+                              onDeleteStudent(s.id);
+                            }
+                          }}
+                        >
+                          Hapus
+                        </button>
+                      </td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
         </div>
       </div>
     </section>

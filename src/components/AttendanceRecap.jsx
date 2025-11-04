@@ -1,87 +1,55 @@
-import { useMemo, useState } from "react";
-import { BarChart3 } from "lucide-react";
+import React, { useMemo, useState } from 'react';
 
-function monthKey(dateStr) {
-  const d = new Date(dateStr);
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
-}
+export default function AttendanceRecap({ students, attendance }) {
+  const [dateFilter, setDateFilter] = useState('');
 
-export default function AttendanceRecap({ students, records }) {
-  const [selectedMonth, setSelectedMonth] = useState(() => {
-    const today = new Date();
-    return `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}`;
-  });
-
-  const recap = useMemo(() => {
-    const byStudent = {};
-    for (const s of students) {
-      byStudent[s.id] = { H: 0, I: 0, S: 0, A: 0 };
-    }
-    for (const r of records) {
-      if (monthKey(r.date) !== selectedMonth) continue;
-      if (!byStudent[r.studentId]) continue;
-      byStudent[r.studentId][r.status] = (byStudent[r.studentId][r.status] || 0) + 1;
-    }
-    return byStudent;
-  }, [records, selectedMonth, students]);
-
-  const monthsAvailable = useMemo(() => {
-    const set = new Set(records.map((r) => monthKey(r.date)));
-    return Array.from(set).sort();
-  }, [records]);
+  const enriched = useMemo(() => {
+    const mapStudents = Object.fromEntries(students.map((s) => [s.id, s.name]));
+    return attendance
+      .filter((a) => (dateFilter ? a.date === dateFilter : true))
+      .map((a) => ({
+        ...a,
+        studentName: mapStudents[a.studentId] || 'Tidak diketahui',
+      }));
+  }, [attendance, students, dateFilter]);
 
   return (
-    <section className="rounded-xl border bg-white p-5 shadow-sm">
+    <section className="rounded-xl border bg-white p-4">
       <div className="flex items-center justify-between mb-4">
-        <div className="flex items-center gap-2">
-          <BarChart3 className="text-blue-600" size={20} />
-          <h2 className="font-semibold">Rekap Kehadiran</h2>
-        </div>
-        <div className="flex items-center gap-2">
-          <label className="text-sm text-gray-600">Bulan</label>
-          <select
-            value={selectedMonth}
-            onChange={(e) => setSelectedMonth(e.target.value)}
-            className="h-10 rounded-lg border px-3"
-          >
-            {monthsAvailable.length === 0 && (
-              <option value={selectedMonth}>{selectedMonth}</option>
-            )}
-            {monthsAvailable.map((m) => (
-              <option key={m} value={m}>{m}</option>
-            ))}
-          </select>
-        </div>
+        <h3 className="font-medium text-slate-800">Rekap Absensi</h3>
+        <input
+          type="date"
+          value={dateFilter}
+          onChange={(e) => setDateFilter(e.target.value)}
+          className="rounded-md border px-3 py-2 text-sm"
+        />
       </div>
 
       <div className="overflow-x-auto">
-        <table className="min-w-full text-sm">
+        <table className="w-full text-sm">
           <thead>
-            <tr className="bg-gray-50 text-gray-600">
-              <th className="text-left px-4 py-2">Siswa</th>
-              <th className="text-center px-4 py-2">H</th>
-              <th className="text-center px-4 py-2">I</th>
-              <th className="text-center px-4 py-2">S</th>
-              <th className="text-center px-4 py-2">A</th>
-              <th className="text-center px-4 py-2">% Hadir</th>
+            <tr className="text-left text-slate-600 border-b">
+              <th className="py-2 pr-2">Tanggal</th>
+              <th className="py-2 pr-2">Nama</th>
+              <th className="py-2 pr-2">Status</th>
+              <th className="py-2">Catatan</th>
             </tr>
           </thead>
           <tbody>
-            {students.map((s) => {
-              const r = recap[s.id] || { H: 0, I: 0, S: 0, A: 0 };
-              const total = r.H + r.I + r.S + r.A;
-              const presentPct = total ? (r.H / total) * 100 : 0;
-              return (
-                <tr key={s.id} className="border-t">
-                  <td className="px-4 py-2 font-medium">{s.name}</td>
-                  <td className="px-4 py-2 text-center text-emerald-700">{r.H}</td>
-                  <td className="px-4 py-2 text-center">{r.I}</td>
-                  <td className="px-4 py-2 text-center">{r.S}</td>
-                  <td className="px-4 py-2 text-center text-red-600">{r.A}</td>
-                  <td className="px-4 py-2 text-center font-semibold">{presentPct.toFixed(0)}%</td>
+            {enriched.length === 0 ? (
+              <tr>
+                <td colSpan={4} className="py-4 text-slate-500">Belum ada data.</td>
+              </tr>
+            ) : (
+              enriched.map((r, idx) => (
+                <tr key={idx} className="border-b last:border-b-0">
+                  <td className="py-2 pr-2">{r.date}</td>
+                  <td className="py-2 pr-2">{r.studentName}</td>
+                  <td className="py-2 pr-2">{r.status}</td>
+                  <td className="py-2">{r.note}</td>
                 </tr>
-              );
-            })}
+              ))
+            )}
           </tbody>
         </table>
       </div>
