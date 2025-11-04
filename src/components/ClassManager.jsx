@@ -3,17 +3,21 @@ import React, { useMemo, useState } from 'react';
 export default function ClassManager({
   classes,
   students,
+  attendance = [],
   selectedClassId,
   onSelectClass,
   onAddClass,
   onDeleteClass,
   onAddStudent,
   onMoveStudent,
+  onEditStudent,
   onDeleteStudent,
 }) {
   const [newClassName, setNewClassName] = useState('');
   const [newStudentName, setNewStudentName] = useState('');
   const [moveTargetClassId, setMoveTargetClassId] = useState('');
+  const [editingId, setEditingId] = useState(null);
+  const [editingName, setEditingName] = useState('');
 
   const selectedClass = useMemo(
     () => classes.find((c) => c.id === selectedClassId) || null,
@@ -39,6 +43,38 @@ export default function ClassManager({
     if (!name || !selectedClassId) return;
     onAddStudent({ name, classId: selectedClassId });
     setNewStudentName('');
+  };
+
+  const confirmDeleteClass = (c) => {
+    const classStudents = students.filter((s) => s.classId === c.id);
+    const studentIds = classStudents.map((s) => s.id);
+    const attCount = attendance.filter((a) => studentIds.includes(a.studentId)).length;
+    const summary = `Anda akan menghapus kelas "${c.name}".\n\nRingkasan:\n- Jumlah siswa: ${classStudents.length}${classStudents.length ? ` (contoh: ${classStudents.slice(0,3).map(s=>s.name).join(', ')}${classStudents.length>3 ? ', ...' : ''})` : ''}\n- Data absensi terkait: ${attCount}\n\nTindakan ini tidak dapat dibatalkan. Lanjutkan?`;
+    if (confirm(summary)) onDeleteClass(c.id);
+  };
+
+  const confirmDeleteStudent = (s) => {
+    const attCount = attendance.filter((a) => a.studentId === s.id).length;
+    const summary = `Hapus siswa \"${s.name}\"?\n\nRingkasan:\n- Kelas: ${selectedClass?.name || '-'}\n- Data absensi yang akan dihapus: ${attCount}\n\nTindakan ini tidak dapat dibatalkan. Lanjutkan?`;
+    if (confirm(summary)) onDeleteStudent(s.id);
+  };
+
+  const startEdit = (s) => {
+    setEditingId(s.id);
+    setEditingName(s.name);
+  };
+
+  const saveEdit = () => {
+    const name = editingName.trim();
+    if (!name) return;
+    onEditStudent(editingId, name);
+    setEditingId(null);
+    setEditingName('');
+  };
+
+  const cancelEdit = () => {
+    setEditingId(null);
+    setEditingName('');
   };
 
   return (
@@ -81,11 +117,7 @@ export default function ClassManager({
                 </button>
                 <div className="flex items-center gap-2">
                   <button
-                    onClick={() => {
-                      if (confirm(`Hapus kelas "${c.name}"? Semua siswa dan data absensi terkait akan ikut terhapus.`)) {
-                        onDeleteClass(c.id);
-                      }
-                    }}
+                    onClick={() => confirmDeleteClass(c)}
                     className="text-xs text-red-600 hover:underline"
                   >
                     Hapus
@@ -154,7 +186,31 @@ export default function ClassManager({
                 ) : (
                   studentsInClass.map((s) => (
                     <tr key={s.id} className="border-b last:border-b-0">
-                      <td className="py-2 pr-2 text-slate-800">{s.name}</td>
+                      <td className="py-2 pr-2 text-slate-800">
+                        {editingId === s.id ? (
+                          <div className="flex items-center gap-2">
+                            <input
+                              className="rounded-md border px-2 py-1"
+                              value={editingName}
+                              onChange={(e) => setEditingName(e.target.value)}
+                            />
+                            <button
+                              onClick={saveEdit}
+                              className="text-xs rounded-md bg-green-600 hover:bg-green-500 text-white px-2 py-1"
+                            >
+                              Simpan
+                            </button>
+                            <button
+                              onClick={cancelEdit}
+                              className="text-xs text-slate-600 hover:underline"
+                            >
+                              Batal
+                            </button>
+                          </div>
+                        ) : (
+                          <span>{s.name}</span>
+                        )}
+                      </td>
                       <td className="py-2 pr-2">
                         <div className="flex items-center gap-2">
                           <select
@@ -186,13 +242,17 @@ export default function ClassManager({
                         </div>
                       </td>
                       <td className="py-2">
+                        {editingId !== s.id && (
+                          <button
+                            className="text-xs text-blue-600 hover:underline mr-3"
+                            onClick={() => startEdit(s)}
+                          >
+                            Ubah Nama
+                          </button>
+                        )}
                         <button
                           className="text-xs text-red-600 hover:underline"
-                          onClick={() => {
-                            if (confirm(`Hapus siswa \"${s.name}\" dari kelas ini? Data absensi terkait akan ikut terhapus.`)) {
-                              onDeleteStudent(s.id);
-                            }
-                          }}
+                          onClick={() => confirmDeleteStudent(s)}
                         >
                           Hapus
                         </button>
