@@ -9,7 +9,9 @@ export default function Navbar() {
             <School size={22} />
           </div>
           <div>
-            <h1 className="text-lg font-semibold leading-tight">Sistem Absensi Siswa</h1>
+            <h1 className="text-lg font-bold leading-tight tracking-wide uppercase">
+              ABSENSI SISWA MAS AL-WASHLIYAH NAGUR
+            </h1>
             <p className="text-xs text-gray-500 -mt-0.5">Dashboard • Kehadiran • Nilai</p>
           </div>
         </div>
